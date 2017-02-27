@@ -12,6 +12,9 @@ public/system/*
 public/assets/*
 public/apidocs/*
 
+# Ignore bower managed dependencies
+vendor/assets/bower_components/*
+
 # Ignore branded content
 app/views/branded/*
 app/assets/**/*
