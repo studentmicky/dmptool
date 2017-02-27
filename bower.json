@@ -1,0 +1,27 @@
+{
+  "name": "DMPRoadmap",
+  "homepage": "https://github.com/CDLUC3/roadmap",
+  "authors": [
+		"Jimmy Angelakos <jimmy.angelakos@ed.ac.uk",
+		"Ray Carrick <ray.carrick@ed.ac.uk",
+		"Jose Lloret <jose.lloret@ed.ac.uk",
+    "Brian Riley <brian.riley@ucop.edu>",
+		"Sam Rust <xsrust@gmail.com"
+  ],
+  "description": "The DMPRoadmap project for data management planning",
+  "main": "",
+  "moduleType": [],
+  "license": "MIT",
+  "private": true,
+  "ignore": [
+    "**/.*",
+    "node_modules",
+    "bower_components",
+    "test",
+    "tests"
+  ],
+  "dependencies": {
+    "font-awesome": "^4.7.0",
+    "forms": "https://github.com/substance/forms.git#^0.2.0"
+  }
+}
