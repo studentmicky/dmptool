@@ -4,29 +4,39 @@
 # [+Created:+] 03/09/2014
 # [+Copyright:+] Digital Curation Centre and University of California Curation Center
 class Phase < ActiveRecord::Base
+#	extend FriendlyId
 
-  extend FriendlyId
+	##
+  # Associations
+	belongs_to :template
+	has_many :sections, dependent: :destroy
+  has_many :questions, :through => :sections, dependent: :destroy
 
-  #associations between tables
-  belongs_to :dmptemplate
+	##
+  # Possibly needed for active_admin
+  #   -relies on protected_attributes gem as syntax depricated in rails 4.2
+	attr_accessible :description, :number, :title, :template_id, 
+                  :template, :sections, :modifiable, :as => [:default, :admin]
 
-# TODO: We shouldn't be short-cutting access to grandchildren and great grandchildren
-  has_many :versions, :dependent => :destroy
-  has_many :sections, :through => :versions, :dependent => :destroy
-  has_many :questions, :through => :sections, :dependent => :destroy
+  ##
+  # sluggable title
+	#friendly_id :title, use: [:slugged, :history, :finders]
 
-# TODO: REMOVE AND HANDLE ATTRIBUTE SECURITY IN THE CONTROLLER!
-  #Link the child's data
-  accepts_nested_attributes_for :versions, :allow_destroy => true 
-#  accepts_nested_attributes_for :dmptemplate
 
-# TODO: REMOVE AND HANDLE ATTRIBUTE SECURITY IN THE CONTROLLER!
-  attr_accessible :description, :number, :title, :versions, :dmptemplate,
-                  :dmptemplate_id, :versions, :as => [:default, :admin]
+  validates :title, :number, :template, presence: true
 
-  friendly_id :title, use: [:slugged, :history, :finders]
 
-  validates :title, :number, :dmptemplate, presence: true
+
+
+
+
+  # EVALUATE CLASS AND INSTANCE METHODS BELOW
+  #
+  # What do they do? do they do it efficiently, and do we need them?
+
+
+
+
 
   ##
   # returns the title of the phase
@@ -36,26 +46,28 @@ class Phase < ActiveRecord::Base
     "#{title}"
   end
 
+# TODO: This function does not belong here anymore. It may be useless now.
   ##
   # returns either the latest published version of this phase
   # also serves to verify if this phase has any published versions as returns nil
   # if there are no published versions
   #
   # @return [Version, nil]
-  def latest_published_version
-    pub_vers = versions.where('published = ?', true).order('updated_at DESC')
-    if pub_vers.any?() then
-      return pub_vers.first
-    else
-      return nil
-    end
-  end
+#  def latest_published_version
+#    pub_vers = versions.where('published = ?', true).order('updated_at DESC')
+#    if pub_vers.any?() then
+#      return pub_vers.first
+#    else
+#      return nil
+#    end
+#  end
 
 # TODO: reevaluate this method. It seems like the 1st query is unecessary
   ##
   # verify if a phase has a published version or a version with one or more sections
   #
   # @return [Boolean]
+=begin
   def has_sections
     versions = self.versions.where('published = ?', true).order('updated_at DESC')
     if versions.any? then
@@ -74,5 +86,22 @@ class Phase < ActiveRecord::Base
       end
     end
     return has_section
+  end
+=end
+  
+  ##
+  # deep copy the given phase and all it's associations
+  #
+  # @params [Phase] phase to be deep copied
+  # @return [Phase] the saved, copied phase
+  def self.deep_copy(phase)
+    phase_copy = phase.dup
+    phase_copy.save!
+    phase.sections.each do |section|
+      section_copy = Section.deep_copy(section)
+      section_copy.phase_id = phase_copy.id
+      section_copy.save!
+    end
+    return phase_copy
   end
 end

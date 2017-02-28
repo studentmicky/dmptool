@@ -280,7 +280,7 @@ es:
     roadmap_label: "Hoja de ruta"
     help_label: "Ayuda"
     contact_label: "Contacto"
-    public_plans_label: "DMP públicos"
+    public_plans_label: "DMP Públicos"
     jisc: "El DCC está financiado por"
 
     sign_in: "Conectar"
@@ -311,7 +311,7 @@ es:
     no_unlock_instructions: "¿No recibió instrucciones para el desbloqueo?"
     send_password_info: "Reiniciar las instrucciones de la clave"
     edit_password_info: "Si quiere cambiar su clave, por favor, rellene los siguientes campos."
-    accept_terms_html: " Acepto los <a href='/terms'>términos y condiciones</a> *"
+    accept_terms_html: " Acepto los <a href=\"/terms\" target=\"_blank\">términos y condiciones</a> *"
  
     text_area: "Text area"
     text_field: "Text field"
@@ -388,6 +388,10 @@ es:
     add_comment_accordion_label: "Compartir nota"
     comment_accordion_label: "Notas"
 
+    answer: 
+      only_one_per_question: "Una pregunta sólo puede tener una respuesta."
+      question_must_belong_to_correct_template: "La pregunta debe pertenecer a la plantilla correcta."
+
     comments:
       add_comment_label: "Añadir nota"
       add_comment_text: "Compartir nota con colaboradores"
@@ -455,11 +459,10 @@ Seleccione qué formato quiere usar y haga clic en 'Exportar'.</p>"
       project_static_info: "Este plan está basado en:"
       projects_title: "Mis planes"
 
-      test: "Plan de prueba o práctica"
       visibility: "Visibilidad"
       visibilities:
         labels:
-          privatelt_visible: "Privado"
+          privately_visible: "Privado"
           organisationally_visible: "Organizativo"
           publicly_visible: "Público"
           is_test: "Prueba/Práctica"
@@ -548,6 +551,7 @@ Seleccione qué formato quiere usar y haga clic en 'Exportar'.</p>"
 
     settings:
       title: "Preferencias"
+      unknown: "Desconocido"
       projects:
         title: "Preferencias - Mis planes"
         desc: "La siguiente tabla muestra las columnas que pueden mostrarse en la lista 'Mis planes'. Elija cuales quiere que se muestren."

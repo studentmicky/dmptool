@@ -3,11 +3,9 @@ require 'test_helper'
 class GuidanceTest < ActiveSupport::TestCase
 
   setup do
-    Organisation.create(name: GlobalHelpers.constant("organisation_types.managing_organisation"))
-    
     @user = User.first
-    
-    @guidance_group = GuidanceGroup.create(name: 'Tester', organisation: @user.organisation)
+
+    @guidance_group = GuidanceGroup.create(name: 'Tester', org: @user.org)
     @guidance = Guidance.create(text: 'Testing some new guidance')
     
     @guidance_group.guidances << @guidance
@@ -19,7 +17,7 @@ class GuidanceTest < ActiveSupport::TestCase
   # ---------------------------------------------------
   test "required fields are required" do
     assert_not Guidance.new.valid?
-    assert_not Guidance.new(guidance_groups: [GuidanceGroup.first]).valid?, "expected the 'text' field to be required"
+    assert_not Guidance.new(guidance_group: GuidanceGroup.first).valid?, "expected the 'text' field to be required"
 
     # Ensure the bar minimum and complete versions are valid
     a = Guidance.new(text: 'Testing guidance')
@@ -27,21 +25,21 @@ class GuidanceTest < ActiveSupport::TestCase
   end
 
   # ---------------------------------------------------
-  test "correctly identifies guidance as belonging to the organisation" do
-    assert @guidance.in_group_belonging_to?(@user.organisation.id), "expected the guidance to belong to the organisation"
+  test "correctly identifies guidance as belonging to the org" do
+    assert @guidance.in_group_belonging_to?(@user.org.id), "expected the guidance to belong to the org"
     
-    @guidance.guidance_groups = []
+    @guidance.guidance_group = nil
     @guidance.save!
 
-    assert_not @guidance.in_group_belonging_to?(@user.organisation), "expected the guidance to NOT belong to the organisation"
+    assert_not @guidance.in_group_belonging_to?(@user.org), "expected the guidance to NOT belong to the org"
   end
 
   # ---------------------------------------------------
-  test "retrieves guidance by organisation" do
-    org = Organisation.create(name: 'Tester 123')
-    assert Guidance.by_organisation(org.id).empty?, "expected the newly created organisation to have no guidance"
+  test "retrieves guidance by org" do
+    org = Org.create(name: 'Tester 123', abbreviation: 'TEST', org_type: 1)
+    assert Guidance.by_org(org.id).empty?, "expected the newly created org to have no guidance"
 
-    assert_not Guidance.by_organisation(@user.organisation.id).empty?, "expected the organisation to have guidance"
+    assert_not Guidance.by_org(@user.org.id).empty?, "expected the org to have guidance"
   end
 
   # ---------------------------------------------------
@@ -50,16 +48,13 @@ class GuidanceTest < ActiveSupport::TestCase
     
     assert_not Guidance.can_view?(@user, g.id), "expected guidance that is not attached to a GuidanceGroup to be unviewable"
     
-    managing = Organisation.find_by(name: GlobalHelpers.constant("organisation_types.managing_organisation"))
-    funder = Organisation.find_by(organisation_type: OrganisationType.find_by( name: GlobalHelpers.constant("organisation_types.funder")))
+    assert Guidance.can_view?(@user, @guidance.id), "expected the user to be able to view guidance belonging to their org"
     
-    assert Guidance.can_view?(@user, @guidance.id), "expected the user to be able to view guidance belonging to their organisation"
-    
-    @guidance_group.organisation = managing
+    @guidance_group.org = Org.managing_orgs.first
     @guidance_group.save!
-    assert Guidance.can_view?(@user, @guidance.id), "expected the user to be able to view guidance belonging to the managing organisation"
+    assert Guidance.can_view?(@user, @guidance.id), "expected the user to be able to view guidance belonging to the managing org"
     
-    @guidance_group.organisation = funder
+    @guidance_group.org = Org.funders.first
     @guidance_group.save!
     assert Guidance.can_view?(@user, @guidance.id), "expected the user to be able to view guidance belonging to a funder"
   end
@@ -68,25 +63,23 @@ class GuidanceTest < ActiveSupport::TestCase
   test "make sure a user can view all appropriate guidance" do
     viewable = Guidance.all_viewable(@user)
     
-    assert viewable.include?(@guidance), "expected the user to be able to view guidance belonging to their organisation"
+    assert viewable.include?(@guidance), "expected the user to be able to view guidance belonging to their org"
+        
+    GuidanceGroup.create(name: 'managing guidance group test', org: Org.managing_orgs.first)
+    GuidanceGroup.create(name: 'funder guidance group test', org: Org.funders.first)
     
-    managing = Organisation.find_by(name: GlobalHelpers.constant("organisation_types.managing_organisation"))
-    funder = Organisation.find_by(organisation_type: OrganisationType.find_by( name: GlobalHelpers.constant("organisation_types.funder")))
-    
-    GuidanceGroup.create(name: 'managing guidance group test', organisation: managing)
-    GuidanceGroup.create(name: 'funder guidance group test', organisation: funder)
-    
-    managing.guidance_groups.each do |gg|
-      gg.guidances.each do |g|
-        assert viewable.include?(g), "expected the user to be able to view all managing organisation guidance"
-      end
+    Org.managing_orgs.first.guidance_groups.first.guidances.each do |g|
+      assert viewable.include?(g), "expected the user to be able to view all managing org guidance"
     end
     
-    funder.guidance_groups.each do |gg|
-      gg.guidances.each do |g|
-        assert viewable.include?(g), "expected the user to be able to view all funder guidance"
-      end
+    Org.funders.first.guidance_groups.first.guidances.each do |g|
+      assert viewable.include?(g), "expected the user to be able to view all funder guidance"
     end
+  end
+  
+  # ---------------------------------------------------
+  test "make sure all templates associated with the guidance are returned" do
+    # TODO: is this method even appropriate?
   end
 
   # ---------------------------------------------------
@@ -103,19 +96,14 @@ class GuidanceTest < ActiveSupport::TestCase
   end
   
   # ---------------------------------------------------
-  test "can manage has_many relationship with GuidanceGroup" do
-    gg = GuidanceGroup.new(name: 'Test Group', organisation: Organisation.first)
-    verify_has_many_relationship(@guidance, gg, @guidance.guidance_groups.count)
-  end
-  
-  # ---------------------------------------------------
   test "can manage has_many relationship with Theme" do
     t = Theme.new(title: 'Test Theme')
     verify_has_many_relationship(@guidance, t, @guidance.themes.count)
   end
   
   # ---------------------------------------------------
-  test "can manage belongs_to relationship with Question" do
-    verify_belongs_to_relationship(@guidance, @question)
+  test "can manage belongs_to relationship with GuidanceGroup" do
+    gg = GuidanceGroup.new(name: 'Test GuidanceGroup', org: Org.last, published: true)
+    verify_belongs_to_relationship(@guidance, gg)
   end  
 end
