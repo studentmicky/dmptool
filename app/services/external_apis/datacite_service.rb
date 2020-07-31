@@ -1,9 +1,12 @@
 # frozen_string_literal: true
 
 module ExternalApis
+
   # This service provides an interface to Datacite API.
   class DataciteService < BaseService
+
     class << self
+
       # Retrieve the config settings from the initializer
       def landing_page_url
         Rails.configuration.x.datacite&.landing_page_url || super
@@ -46,9 +49,9 @@ module ExternalApis
       end
 
       # Create a new DOI
-      # rubocop:disable Metrics/AbcSize, Metrics/MethodLength
-      def mint_doi(data_management_plan:, provenance:)
-        data = json_from_template(provenance: provenance, dmp: data_management_plan)
+      # rubocop:disable Metrics/MethodLength
+      def mint_doi(plan:)
+        data = json_from_template(dmp: plan)
         resp = http_post(uri: "#{api_base_url}#{mint_path}",
                          additional_headers: {
                            "Content-Type": "application/vnd.api+json"
@@ -58,22 +61,14 @@ module ExternalApis
           handle_http_failure(method: "Datacite mint_doi", http_response: resp)
           return nil
         end
-        json = JSON.parse(resp.body)
-        unless json["data"].present? &&
-               json["data"]["attributes"].present? &&
-               json["data"]["attributes"]["doi"].present?
-          log_error(method: "Datacite mint_doi",
-                    error: StandardError.new("Unexpected JSON format from Datacite!"))
-          return nil
-        end
+
+        json = process_response(response: resp)
+        return nil unless json.present?
+
         json.fetch("data", "attributes": { "doi": nil })
             .fetch("attributes", { "doi": nil })["doi"]
-      # If a JSON parse error occurs then return results of a local table search
-      rescue JSON::ParserError => e
-        log_error(method: "Datacite mint_doi", error: e)
-        nil
       end
-      # rubocop:enable Metrics/AbcSize, Metrics/MethodLength
+      # rubocop:enable Metrics/MethodLength
 
       private
 
@@ -81,16 +76,33 @@ module ExternalApis
         { username: client_id, password: client_secret }
       end
 
-      def json_from_template(provenance:, dmp:)
+      def json_from_template(dmp:)
         ActionController::Base.new.render_to_string(
           template: "/datacite/_minter",
-          locals: {
-            prefix: shoulder,
-            data_management_plan: dmp,
-            provenance: provenance
-          }
+          locals: { prefix: shoulder, data_management_plan: dmp }
         )
       end
+
+      # rubocop:disable Metrics/MethodLength
+      def process_response(response:)
+        json = JSON.parse(response.body)
+        unless json["data"].present? &&
+               json["data"]["attributes"].present? &&
+               json["data"]["attributes"]["doi"].present?
+          log_error(method: "Datacite mint_doi",
+                    error: StandardError.new("Unexpected JSON format from Datacite!"))
+          return nil
+        end
+        json
+      # If a JSON parse error occurs then return results of a local table search
+      rescue JSON::ParserError => e
+        log_error(method: "Datacite mint_doi", error: e)
+        nil
+      end
+      # rubocop:enable Metrics/MethodLength
+
     end
+
   end
+
 end

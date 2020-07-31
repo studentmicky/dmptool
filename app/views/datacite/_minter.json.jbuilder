@@ -11,88 +11,73 @@ json.data do
     json.schemaVersion "http://datacite.org/schema/kernel-4"
 
     json.types do
-      json.ris "DATA"
-      json.bibtex "misc"
-      json.citeproc "text"
-      json.schemaOrg "Text"
+      json.resourceType "Text/DataManagementPlan"
       json.resourceTypeGeneral "Text"
     end
 
-    creators = data_management_plan.contributors_data_management_plans.select do |per|
-      per.role == "primary_contact"
-    end
-    creator = creators.first&.contributor
+    creators = data_management_plan.owner_and_coowners
+    ror_scheme = IdentifierScheme.where(name: "ror").first
+    orcid_scheme = IdentifierScheme.where(name: "orcid").first
 
-    if creator.present?
-      json.creators do
-        json.array! [creator] do |contributor|
-          json.name contributor.name
-          json.nameType "Personal"
+    if creators.present? && creators.any?
+      json.creators creators do |creator|
+        json.name [creator.surname, creator.firstname].join(", ")
+        json.nameType "Personal"
 
-          if contributor.affiliation.present?
-            json.affiliation do
-              json.name contributor.affiliation.name
+        if creator.org.present?
+          json.affiliation do
+            json.name creator.org.name
 
-              # Getting:
-              #    {"status":"422","title":"found unpermitted parameters: :nameIdentifier, :nameIdentifierScheme"}
-              # ror = organization.rors.first
-              # if ror.present?
-              #  json.schemeUri 'https://ror.org'
-              #  json.nameIdentifier ror.value
-              #  json.nameIdentifierScheme 'ROR'
-              # end
+            ror = creator.org.identifier_for_scheme(scheme: ror_scheme)
+            if ror_scheme.present? && ror.present?
+              json.affiliationIdentifier ror.value
+              json.affiliationIdentifierScheme "ROR"
             end
           end
+        end
 
-          orcid = contributor.orcids.first
-          if orcid.present?
-            json.nameIdentifiers do
-              json.array! [orcid] do |ident|
-                json.schemeUri "https://orcid.org"
-                json.nameIdentifier "https://orcid.org/#{ident.value}"
-                json.nameIdentifierScheme "ORCID"
-              end
-            end
+        orcid = creator.identifier_for_scheme(scheme: orcid_scheme)
+        if orcid_scheme.present? && orcid.present?
+          json.nameIdentifiers [orcid] do |ident|
+            json.schemeUri "https://orcid.org"
+            json.nameIdentifier "https://orcid.org/#{ident.value}"
+            json.nameIdentifierScheme "ORCID"
           end
         end
       end
     end
 
-    contributors = data_management_plan.contributors_data_management_plans.reject do |per|
-      per.role == "primary_contact"
-    end
-    if contributors.any?
+    contributors = data_management_plan.contributors
+    if contributors.present? && contributors.any?
       json.contributors contributors do |contributor|
-        next unless contributor.contributor.present?
+        next unless contributor.roles.positive?
 
-        person = contributor.contributor
-        json.name person.name
+        datacite_role = "ProjectManager" if contributor.project_administration?
+        datacite_role = "ProjectLeader" if datacite_role.nil? && contributor.investigation?
+        datacite_role = "DataCurator" unless datacite_role.present?
+
+        json.name contributor.name
         json.nameType "Personal"
-        json.contributorType contributor.role.humanize
+        json.contributorType datacite_role
 
-        if person.affiliation.present?
+        if contributor.org.present?
           json.affiliation do
-            json.name person.affiliation.name
+            json.name contributor.org.name
 
-            # Getting:
-            #    {"status":"422","title":"found unpermitted parameters: :nameIdentifier, :nameIdentifierScheme"}
-            # ror = organization.rors.first
-            # if ror.present?
-            #  json.schemeUri 'https://ror.org'
-            #  json.nameIdentifier ror.value
-            #  json.nameIdentifierScheme 'ROR'
-            # end
+            ror = contributor.org.identifier_for_scheme(scheme: ror_scheme)
+            if ror_scheme.present? && ror.present?
+              json.affiliationIdentifier ror.value
+              json.affiliationIdentifierScheme "ROR"
+            end
           end
         end
 
-        orcid = person.orcids.first
-        if orcid.present?
-          json.nameIdentifiers do
-            json.array! [orcid] do |ident|
-              # json.schemeUri 'https://orcid.org'
-              json.nameIdentifier "https://orcid.org/#{ident.value}"
-              json.nameIdentifierScheme "ORCID"
-            end
+        orcid = contributor.identifier_for_scheme(scheme: orcid_scheme)
+        if orcid_scheme.present? && orcid.present?
+          json.nameIdentifiers [orcid] do |ident|
+            json.schemeUri "https://orcid.org"
+            json.nameIdentifier "https://orcid.org/#{ident.value}"
+            json.nameIdentifierScheme "ORCID"
           end
         end
       end
@@ -103,41 +88,50 @@ json.data do
         json.title title
       end
     end
-    json.publisher provenance
+    json.publisher ApplicationService.application_name
     json.publicationYear Time.now.year
 
     json.dates [
-      { type: "Created", date: data_management_plan.created_at.to_s },
-      { type: "Updated", date: data_management_plan.updated_at.to_s }
+      { type: "Created", date: data_management_plan.created_at.to_formatted_s(:iso8601) },
+      { type: "Updated", date: data_management_plan.updated_at.to_formatted_s(:iso8601) }
     ] do |hash|
       json.date hash[:date]
       json.dateType hash[:type]
     end
 
-    json.identifiers [data_management_plan.dois.first] do |doi|
-      json.identifier "https://doi.org/#{doi}"
-      json.identifierType "DOI"
+    json.relatedIdentifiers [data_management_plan] do
+      url = Rails.application.routes.url_helpers.api_v1_plan_url(data_management_plan)
+      json.relatedIdentifier url
+      json.relatedIdentifierType "URL"
+      json.relatedIdentifierType "IsMetadataFor"
     end
 
     if data_management_plan.description.present?
       json.descriptions [data_management_plan.description] do |description|
-        json.lang "eng"
         json.description description
+        json.descriptionType "Abstract"
       end
     end
 
-    # Getting:
-    #    {"status":"422","title":"found unpermitted parameters: :nameIdentifier, :nameIdentifierScheme"}
-    # if data_management_plan.projects.any?
-    #  json.fundingReferences do
-    #    project = data_management_plan.projects.first
-    #    json.array! project.awards do |award|
-    #      json.funderIdentifier award.funder_uri
-    #      json.funderIdentifierType 'Crossref Funder ID'
-    #      json.schemeUri 'https://www.crossref.org/services/funder-registry/'
-    #    end
-    #  end
-    # end
+    if data_management_plan.funder.present?
+      json.fundingReferences [data_management_plan.funder] do |funder|
+        json.funderName funder.name
+
+        ror = creator.org.identifier_for_scheme(scheme: ror_scheme)
+        if ror_scheme.present? && ror.present?
+          json.funderIdentifier ror.value
+          json.funderIdentifierType "ROR"
+        end
+
+        if data_management_plan.grant.present?
+          if data_management_plan.grant.value.start_with?("http")
+            json.awardURI = data_management_plan.grant.value
+          else
+            json.awardNumber = data_management_plan.grant.value
+          end
+        end
+      end
+    end
   end
 end
 # rubocop:enable Metrics/BlockLength
