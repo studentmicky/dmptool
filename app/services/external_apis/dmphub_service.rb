@@ -55,7 +55,7 @@ module ExternalApis
       # Create a new DOI
       # rubocop:disable Metrics/MethodLength
       def mint_doi(plan:)
-        return nil unless auth
+        return nil unless active? && auth
 
         hdrs = {
           "Authorization": @token,
@@ -78,12 +78,16 @@ module ExternalApis
 
       # Update the DOI
       def update_doi(plan:)
+        return nil unless active? && plan.present?
+
         # Implement this later once we figure out versioning
         plan.present?
       end
 
       # Delete the DOI
       def delete_doi(plan:)
+        return nil unless active? && plan.present?
+
         # implement this later if necessary and if reasonable. Is deleting a DOI feasible?
         plan.present?
       end

@@ -28,7 +28,7 @@ module ExternalApis
         Rails.configuration.x.datacite&.max_redirects || super
       end
 
-      def active
+      def active?
         Rails.configuration.x.datacite&.active || super
       end
 
@@ -49,15 +49,17 @@ module ExternalApis
       end
 
       # Create a new DOI
-      # rubocop:disable Metrics/MethodLength
+      # rubocop:disable Metrics/MethodLength, Metrics/AbcSize
       def mint_doi(plan:)
+        return nil unless active?
+
         data = json_from_template(dmp: plan)
         resp = http_post(uri: "#{api_base_url}#{mint_path}",
                          additional_headers: {
                            "Content-Type": "application/vnd.api+json"
                          },
                          data: data, basic_auth: auth, debug: false)
-        unless resp.present? && resp.code == 200
+        unless resp.present? && [200, 201].include?(resp.code)
           handle_http_failure(method: "Datacite mint_doi", http_response: resp)
           return nil
         end
@@ -68,7 +70,23 @@ module ExternalApis
         json.fetch("data", "attributes": { "doi": nil })
             .fetch("attributes", { "doi": nil })["doi"]
       end
-      # rubocop:enable Metrics/MethodLength
+      # rubocop:enable Metrics/MethodLength, Metrics/AbcSize
+
+      # Update the DOI
+      def update_doi(plan:)
+        return nil unless active? && plan.present?
+
+        # Implement this later once we figure out versioning
+        plan.present?
+      end
+
+      # Delete the DOI
+      def delete_doi(plan:)
+        return nil unless active? && plan.present?
+
+        # implement this later if necessary and if reasonable. Is deleting a DOI feasible?
+        plan.present?
+      end
 
       private
 
