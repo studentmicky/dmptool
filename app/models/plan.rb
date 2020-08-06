@@ -590,6 +590,12 @@ class Plan < ActiveRecord::Base
     identifiers.select { |i| %w[doi ark].include?(i.identifier_format) }.first
   end
 
+  # Retrieves the Plan's most recent DOI
+  def doi
+    schemes = IdentifierScheme.for_identification
+    identifiers.select { |id| schemes.include?(id.identifier_scheme) }.last
+  end
+
   private
 
   # Initialize the title for new templates

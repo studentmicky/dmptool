@@ -123,6 +123,7 @@ Rails.application.routes.draw do
       post 'visibility', constraints: {format: [:json]}
       post 'set_test', constraints: {format: [:json]}
       get 'overview'
+      get 'mint'
     end
   end
 
